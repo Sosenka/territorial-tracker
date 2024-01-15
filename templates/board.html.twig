@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=1920, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        body {
+            background-color: #313338;
+        }
+
+        .wrapper {
+            max-width: 725px;
+            background-color: #0d1117;
+            padding: 10px;
+            border-radius: 10px;
+            height: 390px;
+        }
+
+        .segment-date p {
+            background-color: #161b22;
+            padding: 10px;
+            border-radius: 10px;
+            color: white;
+            margin-block-start: unset;
+            margin-block-end: unset;
+        }
+
+
+        .segment table {
+            width: 100%;
+            text-align: center;
+        }
+
+        .scoreboard table {
+            font-size: 22px;
+        }
+
+        .scoreboard {
+            float: right;
+            width: 65%;
+            font-family: "AnjaliOldLipi";
+            background-color: #161b22;
+            padding: 10px;
+            border-radius: 10px;
+            margin: 10px;
+            color: white;
+        }
+
+        .segment-date {
+            margin-top: 5px;
+            margin-left: 10px;
+            max-width: 25%;
+            float: left;
+            font-family: "AnjaliOldLipi";
+            width: 100%;
+            font-size: 15px;
+        }
+
+        .segment-date-content {
+            margin: 5px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            background-color: #161b22;
+            font-family: "AnjaliOldLipi";
+            border-radius: 10px;
+            padding: 5px;
+        }
+
+        table img {
+            width: 13px;
+        }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <div class="segment segment-date">
+        <div class="segment-date-content">{{ "now"|date("d/m/Y") }}</div>
+
+        <div class="segment-date-content">
+            Contest Ranking
+            <table>
+                <tr>
+                    <td>#</td>
+                    <td>Clan</td>
+                    <td>Count</td>
+                </tr>
+
+                {% for key, value in wins['contest'] %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ key }}</td>
+                        <td>{{ value }}</td>
+                    </tr>
+                {% endfor %}
+
+            </table>
+        </div>
+
+        <div class="segment-date-content">
+            Normals Ranking
+            <table>
+                <tr>
+                    <td>#</td>
+                    <td>Clan</td>
+                    <td>Count</td>
+                </tr>
+                {% for key, value in wins['normal'] %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ key }}</td>
+                        <td>{{ value }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+    <div class="segment scoreboard">
+
+        <table>
+            <tr>
+                <td></td>
+                <td>Rank</td>
+                <td>Clan</td>
+                <td>Points</td>
+                <td>Daily Ratio</td>
+            </tr>
+            {% for rank in ranks %}
+                <tr>
+                    <td>
+                        {% if rank.rank > 0 %}
+                            <span style="color: green">+{{ rank.rank }}</span>
+                        {% elseif rank.rank == 0 %}
+                            -
+                        {% else %}
+                            <span style="color: red">{{ rank.rank }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ rank.clan }}</td>
+                    <td>{{ rank.points }}</td>
+                    <td>
+                        {% if rank.ratio > 0 %}
+                            <span style="color: green">{{ rank.ratio }}</span>
+                        {% elseif rank.ratio == 0 %}
+                            <span>{{ rank.ratio }}</span>
+                        {% else %}
+                            <span style="color: red">{{ rank.ratio }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+</body>
+</html>

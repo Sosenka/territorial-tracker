@@ -1,0 +1,10 @@
+knp_snappy:
+    temporary_folder: "%kernel.project_dir%/public/test"
+    pdf:
+        enabled:    true
+        binary:     wkhtmltopdf
+        options:    []
+    image:
+        enabled:    true
+        binary:     wkhtmltoimage
+        options:    []
