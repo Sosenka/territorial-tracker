@@ -74,7 +74,7 @@ final class PublishCommand extends Command
 
         $wins = $this->scraper->fetchDiscordMessages();
 
-        $this->scraper->createImage(array_slice($result, 0, 10), $wins);
+        $this->scraper->createImage(array_slice($result, 0, 21), $wins);
         return Command::SUCCESS;
 
     }

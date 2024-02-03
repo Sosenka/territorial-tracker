@@ -12,11 +12,11 @@
         }
 
         .wrapper {
-            max-width: 725px;
+            max-width: 1500px;
             background-color: #0d1117;
             padding: 10px;
             border-radius: 10px;
-            height: 390px;
+            height: 722px;
         }
 
         .segment-date p {
@@ -27,7 +27,6 @@
             margin-block-start: unset;
             margin-block-end: unset;
         }
-
 
         .segment table {
             width: 100%;
@@ -81,7 +80,7 @@
         <div class="segment-date-content">{{ "now"|date("d/m/Y") }}</div>
 
         <div class="segment-date-content">
-            Contest Ranking
+            Casuals Wins
             <table>
                 <tr>
                     <td>#</td>
@@ -89,7 +88,7 @@
                     <td>Count</td>
                 </tr>
 
-                {% for key, value in wins['contest'] %}
+                {% for key, value in wins['normalCount'] %}
                     <tr>
                         <td>{{ loop.index }}</td>
                         <td>{{ key }}</td>
@@ -101,14 +100,14 @@
         </div>
 
         <div class="segment-date-content">
-            Normals Ranking
+            Casuals Points
             <table>
                 <tr>
                     <td>#</td>
                     <td>Clan</td>
                     <td>Count</td>
                 </tr>
-                {% for key, value in wins['normal'] %}
+                {% for key, value in wins['normalPoints'] %}
                     <tr>
                         <td>{{ loop.index }}</td>
                         <td>{{ key }}</td>
@@ -154,6 +153,46 @@
                 </tr>
             {% endfor %}
         </table>
+    </div>
+    <div class="segment segment-date" style="margin-top: 3px;">
+
+        <div class="segment-date-content">
+            Contest Wins
+            <table>
+                <tr>
+                    <td>#</td>
+                    <td>Clan</td>
+                    <td>Count</td>
+                </tr>
+
+                {% for key, value in wins['contestCount'] %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ key }}</td>
+                        <td>{{ value }}</td>
+                    </tr>
+                {% endfor %}
+
+            </table>
+        </div>
+
+        <div class="segment-date-content">
+            Contest Points
+            <table>
+                <tr>
+                    <td>#</td>
+                    <td>Clan</td>
+                    <td>Count</td>
+                </tr>
+                {% for key, value in wins['contestPoints'] %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ key }}</td>
+                        <td>{{ value }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        </div>
     </div>
 </div>
 </body>

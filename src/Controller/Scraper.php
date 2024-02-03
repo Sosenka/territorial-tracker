@@ -18,6 +18,7 @@ use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
+use function MongoDB\BSON\toJSON;
 
 final class Scraper extends AbstractController
 {
@@ -26,11 +27,11 @@ final class Scraper extends AbstractController
     private string $discordWebhook;
 
     public function __construct(
-        private readonly TrackerInterface $tracker,
+        private readonly TrackerInterface        $tracker,
         private readonly TrackerManagerInterface $trackerManager,
-        private readonly Image            $image,
-        private ParameterBagInterface     $parameterBag,
-        private EndpointEnvUtils          $endpointEnvUtils,
+        private readonly Image                   $image,
+        private ParameterBagInterface            $parameterBag,
+        private EndpointEnvUtils                 $endpointEnvUtils,
     )
     {
         $this->defaultDir = $this->parameterBag->get('kernel.project_dir') . '/public/tracker/';
@@ -67,27 +68,40 @@ final class Scraper extends AbstractController
     #[Route('/board')]
     public function board(): Response
     {
-        $html = $this->renderView('board.html.twig', [
+        return $this->render('test-board.html.twig', [
             'ranks' => [],
-            'wins' => ['contest' => [], 'normal' => []],
+            'wins' => [
+                'normalCount' => [
+                    "CORGI" => 51.29,
+                    "OG" => 49.4,
+                    "VOID" => 18.186,
+                    "FR" => 10.764,
+                    "PG" => 9.768,
+                ],
+                'contestCount' => [
+                    "CORGI" => 4.517,
+                    "OG" => 1.913,
+                    "PG" => 0.965,
+                    "VOID" => 0.423,
+                    "YUKARI" => 0.359,
+
+                ],
+                'normalPoints' => [
+                    "CORGI" => 1178.411,
+                    "OG" => 1079.508,
+                    "PG" => 374.125,
+                    "VOID" => 362.433,
+                    "FR" => 182.417,
+                ],
+                'contestPoints' => [
+                    "CORGI" => 782.364,
+                    "OG" => 431.72,
+                    "PG" => 169.84,
+                    "VOID" => 63.45,
+                    "YUKARI" => 45.234,
+                ],
+            ],
         ]);
-
-        $htmlFile = '/home/pawsos/Sites/territorial/public/test/test.html';
-        file_put_contents($htmlFile, $html);
-
-        $image = new Imagick();
-        $image->readImageBlob($html);
-        $image->setImageFormat("jpg");
-
-        $image->setImageBackgroundColor('white');
-        $image->setImageAlphaChannel(\Imagick::ALPHACHANNEL_REMOVE);
-        $image->setImageAlphaChannel(\Imagick::ALPHACHANNEL_OPAQUE);
-        $image->mergeImageLayers(\Imagick::LAYERMETHOD_FLATTEN);
-
-        $image->setImageCompressionQuality(90);
-        $image->writeImage('obrazu.jpg');
-
-        return $this->render('board.html.twig');
     }
 
     public function createImage(array $ranks, $wins): Response
@@ -143,7 +157,7 @@ final class Scraper extends AbstractController
                             'icon_url' => 'https://cdn.discordapp.com/avatars/750224063640633348/e874c95379614e38225427ce17e705e8.png?size=1024',
                         ],
                         'footer' => [
-                            'text' => 'version 0.1.1 abandoned',
+                            'text' => 'version 0.2.0',
                         ],
                     ],
                 ],
@@ -156,11 +170,10 @@ final class Scraper extends AbstractController
     public function fetchDiscordMessages(int $limit = 100): array
     {
         $ourDate = new \DateTime();
-        $ourDate->setTime(1, 0, 0);
+        $ourDate->setTime(0, 0, 0);
         $messages = [];
 
 
-        $client = new Client();
         $lastMessageId = "";
         $still = true;
 
@@ -170,12 +183,39 @@ final class Scraper extends AbstractController
             foreach ($response as $message) {
                 $discordMessageDate = new \DateTime($message->timestamp);
                 if ($discordMessageDate > $ourDate) {
-                    $content = array_values(explode('   ', $message->content));
 
-                    $messages[] = [
-                        'clan' => explode(' ', trim($content[2]))[0],
-                        'map' => $content[0],
+                    $pattern = '/Player Count:\s+(\d+)/';
+                    preg_match($pattern, $message->content, $playerCount);
+
+                    $pattern = '/Game Mode:\s+(.+)\n/';
+                    preg_match($pattern, $message->content, $gameMode);
+
+                    if (!$gameMode && !$playerCount) {
+                        continue;
+                    }
+
+                    $pattern = '/\[([A-Z]+)\]:\s+\d+\.\d+\s+\+\s+\d+\.\d+\s+=\s+(\d+\.\d+),\s+T\s+=\s+\d+\s+\((\s*\d+\.\d+)\s*%\)/';
+                    preg_match_all($pattern, json_encode($message->content), $matches, PREG_SET_ORDER);
+
+                    $outputArray = [
+                        'playerCount' => $playerCount[1],
+                        'gameMode' => $gameMode[1],
+                        'clans' => [],
                     ];
+
+                    foreach ($matches as $match) {
+                        $multiplier = str_contains($gameMode[1], 'Contest') ? 2 : 1;
+
+                        $outputArray['clans'][] = [
+                            'clan' => $match[1],
+                            'percent' => $match[3],
+                            'points' => ((float)$match[3] !== 0.0 ? (int)$playerCount[1] * $match[3] / 100 : 0) * $multiplier,
+                            'winRate' => 1 * $match[3] / 100,
+                            'contest' => $multiplier === 2,
+                        ];
+                    }
+
+                    $messages[] = $outputArray;
 
                     $lastMessageId = $message->id;
                 } else {
@@ -189,34 +229,70 @@ final class Scraper extends AbstractController
         return $this->calculateCountOfWins($messages);
     }
 
-    public function calculateCountOfWins(array $wins)
+    public function calculateCountOfWins(array $wins): array
     {
-        $normalWinCount = [];
-        $contestWinCount = [];
+        $normalWinCount = $contestWinCount = $normalWinPointsCount = $contestWinPointsCount = [];
 
         foreach ($wins as $win) {
-            $clan = $win['clan'];
+            foreach ($win['clans'] as $clan) {
 
-            if ($win['map'][0] === '*') {
-                $contestWinCount[$clan] = ($contestWinCount[$clan] ?? 0) + 1;
-            } else {
-                $normalWinCount[$clan] = ($normalWinCount[$clan] ?? 0) + 1;
+                switch ($clan['contest']) {
+                    case true:
+                        if (array_key_exists($clan['clan'], $contestWinCount)) {
+                            $contestWinCount[$clan['clan']] += round($clan['winRate'], 1);
+                        } else {
+                            $contestWinCount[$clan['clan']] = round($clan['winRate'], 1);
+                        }
+
+                        if (array_key_exists($clan['clan'], $contestWinPointsCount)) {
+                            $contestWinPointsCount[$clan['clan']] += round($clan['points'], 2);
+                        } else {
+                            $contestWinPointsCount[$clan['clan']] =  round($clan['points'], 2);
+                        }
+                        break;
+                    case false:
+                        if (array_key_exists($clan['clan'], $normalWinCount)) {
+                            $normalWinCount[$clan['clan']] += round($clan['winRate'], 1);
+                        } else {
+                            $normalWinCount[$clan['clan']] = round($clan['winRate'], 1);
+                        }
+
+                        if (array_key_exists($clan['clan'], $normalWinPointsCount)) {
+                            $normalWinPointsCount[$clan['clan']] +=  round($clan['points'], 2);
+                        } else {
+                            $normalWinPointsCount[$clan['clan']] =  round($clan['points'], 2);
+                        }
+                        break;
+                }
             }
+
         }
 
 
         arsort($normalWinCount, SORT_REGULAR);
         arsort($contestWinCount, SORT_REGULAR);
-        $normalWinCount = array_slice($normalWinCount, 0, 5);
-        $contestWinCount = array_slice($contestWinCount, 0, 5);
-        return ['normal' => $normalWinCount, 'contest' => $contestWinCount];
+        arsort($contestWinPointsCount, SORT_REGULAR);
+        arsort($normalWinPointsCount, SORT_REGULAR);
+
+        return [
+            'normalCount' => array_slice($normalWinCount, 0, 5),
+            'contestCount' => array_slice($contestWinCount, 0, 5),
+            'normalPoints' => array_slice($normalWinPointsCount, 0, 5),
+            'contestPoints' => array_slice($contestWinPointsCount, 0, 5),
+        ];
     }
 
     private function getOlderMessages(string $lastMessageId = "", int $limit = 100): array
     {
         $client = new Client();
 
-        $request = $client->request('GET', 'https://discord.com/api/v9/channels/917537295261913159/messages?before=' . $lastMessageId . '&limit=' . $limit, [
+        if ($lastMessageId === "") {
+            $url = 'https://discord.com/api/v9/channels/917537295261913159/messages?limit=' . $limit;
+        } else {
+            $url = 'https://discord.com/api/v9/channels/917537295261913159/messages?before=' . $lastMessageId . '&limit=' . $limit;
+        }
+
+        $request = $client->request('GET', $url, [
             'headers' => [
                 'authorization' => $this->discordToken,
                 'accept' => '*/*',
